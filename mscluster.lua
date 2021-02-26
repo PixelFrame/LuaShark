@@ -26,11 +26,11 @@ rcp.fields.seqNo = ProtoField.uint32("rcp.seq", "SequenceNumber")
 rcp.fields.extNextHeader = ProtoField.new("NextHeader", "rcp.ext.nextheader", ftypes.UINT16, rcp_nextHeader)
 rcp.fields.extLength = ProtoField.uint16("rcp.ext.length", "ExtensionLength")
 rcp.fields.extReserved = ProtoField.uint32("rcp.ext.reserved", "Reserved")
-rcp.fields.extSrc = ProtoField.ipv6("rcp.ext.src", "SourceAddress")
-rcp.fields.extDst = ProtoField.ipv6("rcp.ext.dst", "DestinationAddress")
+rcp.fields.extSrcv6 = ProtoField.ipv6("rcp.ext.srcv6", "SourceAddress")
+rcp.fields.extDstv6 = ProtoField.ipv6("rcp.ext.dstv6", "DestinationAddress")
+rcp.fields.extSrcv4 = ProtoField.ipv4("rcp.ext.src", "SourceAddress")
+rcp.fields.extDstv4 = ProtoField.ipv4("rcp.ext.dst", "DestinationAddress")
 
-
-local identifier_filed = Field.new("rcp.id")
 local type_field = Field.new("rcp.type")
 local nextHeader_filed = Field.new("rcp.nextheader")
 local seq_field = Field.new("rcp.seq")
@@ -65,10 +65,14 @@ function rcp.dissector(buffer, pinfo, tree)
     extensionheader:add_le(rcp.fields.extNextHeader, buffer(16,2))
     extensionheader:add_le(rcp.fields.extLength, buffer(18,2))
     extensionheader:add_le(rcp.fields.extReserved, buffer(20,4))
-    extensionheader:add_le(rcp.fields.extSrc, buffer(24,16))
-    extensionheader:add_le(rcp.fields.extDst, buffer(40,16))
+    if (nextHeader_filed()() == 1) then
+        extensionheader:add(rcp.fields.extSrcv4, buffer(24,4))
+        extensionheader:add(rcp.fields.extDstv4, buffer(28,4))
+    elseif (nextHeader_filed()() == 2) then
+        extensionheader:add(rcp.fields.extSrcv6, buffer(24,16))
+        extensionheader:add(rcp.fields.extDstv6, buffer(40,16))
+    end
     extensionheader:append_text(", "..rcp_nextHeader[buffer(16,2):le_uint()])
-
 end
 
 udp_table = DissectorTable.get("udp.port")
