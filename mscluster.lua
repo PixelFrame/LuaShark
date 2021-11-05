@@ -1,8 +1,11 @@
 -- Wireshark lua plugin for Microsoft Failover Cluster traffic
 -- Written according to NetMon parser failovercluster.npl
+-- As no practical sample for mscs_regroup and mscs_sec, they're just added but not usable
 
 local mscluster = Proto("mscluster", "Microsoft Failover Cluster")
 local rcp = Proto("rcp", "Route Control Protocol")
+local mscs_sec = Proto("mscs_sec", "MSCS Security")
+local mscs_regroup = Proto("mscs_regroup", "MSCS Regroup")
 
 local rcp_type = {}
 rcp_type[0] = "RCP Request"
@@ -31,18 +34,27 @@ rcp.fields.extDstv6 = ProtoField.ipv6("rcp.ext.dstv6", "DestinationAddress")
 rcp.fields.extSrcv4 = ProtoField.ipv4("rcp.ext.src", "SourceAddress")
 rcp.fields.extDstv4 = ProtoField.ipv4("rcp.ext.dst", "DestinationAddress")
 
+mscs_sec.fields.identifier = ProtoField.uint32("mscs_sec.id", "Identifier")
+mscs_sec.fields.version = ProtoField.uint32("mscs_sec.ver", "Version")
+mscs_sec.fields.msgSize = ProtoField.uint32("mscs_sec.msgsize", "Message Size")
+mscs_sec.fields.totalMsg = ProtoField.uint32("mscs_sec.totalmsg", "Total Message")
+mscs_sec.fields.msgProtection = ProtoField.uint32("mscs_sec.msgprotection", "Message Protection")
+mscs_sec.fields.reserved = ProtoField.uint32("mscs_sec.reserved", "Reserved")
+
 local type_field = Field.new("rcp.type")
 local nextHeader_filed = Field.new("rcp.nextheader")
 local seq_field = Field.new("rcp.seq")
 
 function mscluster.dissector(buffer, pinfo, tree)
     tree:add(mscluster,buffer())
-    if buffer(0,4):uint() ~= 1431655765 then
+    if buffer(0,4):uint() == 0x55555555 then
+        rcp.dissector(buffer, pinfo, tree)
+    elseif buffer(0,4):uint() == 0x11E6C4EB then
+        mscs_sec.dissector(buffer, pinfo, tree)
+    else
         pinfo.cols.protocol = "ClusterFailover"
         Dissector.get("eth_withoutfcs"):call(buffer,pinfo,tree)
-        return
     end
-    rcp.dissector(buffer, pinfo, tree)
 end
 
 function rcp.dissector(buffer, pinfo, tree)
@@ -73,6 +85,17 @@ function rcp.dissector(buffer, pinfo, tree)
         extensionheader:add(rcp.fields.extDstv6, buffer(40,16))
     end
     extensionheader:append_text(", "..rcp_nextHeader[buffer(16,2):le_uint()])
+end
+
+function mscs_sec.dissector(buffer, pinfo, tree)
+    pinfo.cols.protocol = "MSCS_SEC"
+    local mscs_sec_header = tree:add(rcp,buffer())
+    mscs_sec_header:add_le(mscs_sec.fields.identifier, buffer(0,4))
+    mscs_sec_header:add_le(mscs_sec.fields.version, buffer(4,4))
+    mscs_sec_header:add_le(mscs_sec.fields.msgSize, buffer(8,4))
+    mscs_sec_header:add_le(mscs_sec.fields.totalMsg, buffer(12,4))
+    mscs_sec_header:add_le(mscs_sec.fields.msgProtection, buffer(16,4))
+    mscs_sec_header:add_le(mscs_sec.fields.reserved, buffer(20,4))
 end
 
 udp_table = DissectorTable.get("udp.port")
