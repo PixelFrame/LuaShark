@@ -50,8 +50,9 @@ local function dfsc_menu()
             for _, node in pairs(nodes) do
                 table.insert(nodestrings, node())
             end
+            entry.pnum = pinfo.number
             entry.nodes = nodestrings
-            statistic[pinfo.number] = entry
+            table.insert(statistic, entry)
         else
             entry.path = "Domain Referrals"
             local nodes = {dfs_out_domain()}
@@ -59,15 +60,16 @@ local function dfsc_menu()
             for _, node in pairs(nodes) do
                 table.insert(nodestrings, node())
             end
+            entry.pnum = pinfo.number
             entry.nodes = nodestrings
-            statistic[pinfo.number] = entry
+            table.insert(statistic, entry)
         end
     end
 
     function tap.draw(t)
         window:clear()
-        for num, entry in pairs(statistic) do
-            window:append("Frame " .. num .. "\n")
+        for _, entry in pairs(statistic) do
+            window:append("Frame " .. entry.pnum .. "\n")
             window:append(entry.path .. "\n")
             for i = 1, #(entry.nodes) - 1, 1 do
                 window:append("├───" .. entry.nodes[i] .. "\n")
@@ -79,7 +81,6 @@ local function dfsc_menu()
 
     function tap.reset()
         window:clear()
-        ips = {}
     end
     retap_packets()
 end
