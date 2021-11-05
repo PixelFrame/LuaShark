@@ -6,6 +6,7 @@ local dfs_out_path = Field.new("smb.dfs.referral.path")
 local dfs_out_node = Field.new("smb.dfs.referral.node")
 local dfs_out_domain = Field.new("smb.dfs.referral.domain_name")
 local dfs_out_ref_flag = Field.new("smb.dfs.referral.flags.name_list_referral")
+local dfs_is_storage = Field.new("smb.dfs.flags.server_hold_storage")
 
 local dfsc = Proto("dfsc", "Distributed File System (DFS): Referral Protocol")
 
@@ -38,9 +39,12 @@ local function dfsc_menu()
 
     function tap.packet(pinfo, tvb)
         local entry = {}
-        print(dfs_out_ref_flag()())
         if (dfs_out_ref_flag()() == false) then
-            entry.path = dfs_out_path()()
+            if (dfs_is_storage()()==false) then
+                entry.path = dfs_out_path()() .. "    †Inter-Link Referral"
+            else
+                entry.path = dfs_out_path()()
+            end
             local nodes = {dfs_out_node()}
             local nodestrings = {}
             for _, node in pairs(nodes) do
